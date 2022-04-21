@@ -11,34 +11,34 @@ type Storage interface {
 }
 
 type URLService struct {
-	storage      *Storage
+	storage      Storage
 	randomizer   *rand.Rand
 	randomMatrix []string
 }
 
 func (service *URLService) SaveURL(url string) string {
-	var n = len(service.randomMatrix) - 1
-	var key = ""
-	var existingKey = "1"
+	n := len(service.randomMatrix) - 1
+	key := ""
+	existingKey := "1"
 
 	for existingKey != "" {
 		key = ""
 		for i := 1; i <= 10; i++ {
-			var index = service.randomizer.Intn(n)
+			index := service.randomizer.Intn(n)
 			key += service.randomMatrix[index]
 		}
-		existingKey = (*service.storage).GetURL(url)
+		existingKey = service.storage.GetURL(url)
 	}
 
-	(*service.storage).SaveURL(url, key)
+	service.storage.SaveURL(url, key)
 	return key
 }
 
 func (service *URLService) GetURL(url string) string {
-	return (*service.storage).GetURL(url)
+	return service.storage.GetURL(url)
 }
 
-func InitURLService(storage *Storage) *URLService {
+func InitURLService(storage Storage) *URLService {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	return &URLService{

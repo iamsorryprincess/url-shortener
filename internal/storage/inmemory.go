@@ -1,4 +1,4 @@
-package infrastructure
+package storage
 
 import (
 	"cmd/shortener/main.go/internal/service"
@@ -20,7 +20,7 @@ func (storage *Storage) GetURL(shortURL string) string {
 	return storage.localMap[shortURL]
 }
 
-func InitStorage() service.Storage {
+func InitInMemoryStorage() service.Storage {
 	return &Storage{
 		localMap: make(map[string]string),
 		mutex:    sync.Mutex{},
