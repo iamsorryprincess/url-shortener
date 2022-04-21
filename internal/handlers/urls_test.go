@@ -51,6 +51,7 @@ func TestPostURL(t *testing.T) {
 
 			handler.ServeHTTP(writer, request)
 			response := writer.Result()
+			defer response.Body.Close()
 
 			if response.StatusCode != test.expectedStatusCode {
 				t.Errorf("Expected status code: %d\nActual status code: %d\n", test.expectedStatusCode, response.StatusCode)
@@ -61,8 +62,6 @@ func TestPostURL(t *testing.T) {
 			if contentType != test.expectedContentType {
 				t.Errorf("Expected content type: %s\nActual content type: %s\n", test.expectedContentType, contentType)
 			}
-
-			defer response.Body.Close()
 		})
 	}
 }
@@ -71,7 +70,7 @@ func TestGetURL(t *testing.T) {
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 	url := "https://www.youtube.com/"
-	shortUrl := urlService.SaveURL(url)
+	shortURL := urlService.SaveURL(url)
 
 	tests := []struct {
 		name               string
@@ -87,7 +86,7 @@ func TestGetURL(t *testing.T) {
 		},
 		{
 			name:               "test with not empty url",
-			query:              shortUrl,
+			query:              shortURL,
 			expectedStatusCode: 307,
 			locationHeader:     url,
 		},
@@ -104,6 +103,7 @@ func TestGetURL(t *testing.T) {
 
 			handler.ServeHTTP(writer, request)
 			response := writer.Result()
+			defer response.Body.Close()
 
 			if response.StatusCode != test.expectedStatusCode {
 				t.Errorf("Expected status code: %d\nActual status code: %d\n", test.expectedStatusCode, response.StatusCode)
