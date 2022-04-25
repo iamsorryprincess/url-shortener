@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"cmd/shortener/main.go/internal/service"
 	"io"
 	"net/http"
+
+	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-func PostURLHandler(urlService *service.URLService) http.HandlerFunc {
+func MakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -32,7 +33,7 @@ func PostURLHandler(urlService *service.URLService) http.HandlerFunc {
 	}
 }
 
-func GetURLHandler(urlService *service.URLService) http.HandlerFunc {
+func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		url := request.RequestURI[1:len(request.RequestURI)]
 

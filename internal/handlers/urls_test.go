@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"bytes"
-	"cmd/shortener/main.go/internal/service"
-	"cmd/shortener/main.go/internal/storage"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/iamsorryprincess/url-shortener/internal/service"
+	"github.com/iamsorryprincess/url-shortener/internal/storage"
 )
 
 type TestHandler struct {
@@ -79,7 +80,7 @@ func TestPostURL(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     PostURLHandler(urlService),
+				handler:     MakeShortURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -122,7 +123,7 @@ func TestGetURL(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Location",
 				headerValue: test.locationHeader,
-				handler:     GetURLHandler(urlService),
+				handler:     GetFullURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)

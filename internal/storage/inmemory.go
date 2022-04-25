@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"cmd/shortener/main.go/internal/service"
 	"sync"
+
+	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
 type Storage struct {

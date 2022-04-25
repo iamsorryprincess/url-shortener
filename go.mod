@@ -1,4 +1,4 @@
-module cmd/shortener/main.go
+module github.com/iamsorryprincess/url-shortener
 
 go 1.18
 
