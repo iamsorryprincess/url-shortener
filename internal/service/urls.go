@@ -27,7 +27,7 @@ func (service *URLService) SaveURL(url string) string {
 			index := service.randomizer.Intn(n)
 			key += service.randomMatrix[index]
 		}
-		existingKey = service.storage.GetURL(url)
+		existingKey = service.storage.GetURL(key)
 	}
 
 	service.storage.SaveURL(url, key)

@@ -1,6 +1,6 @@
 package main
 
-import "cmd/shortener/main.go/internal/app"
+import "github.com/iamsorryprincess/url-shortener/internal/app"
 
 func main() {
 	app.Run()
