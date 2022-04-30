@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-func MakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
+func MakeShortRawURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -30,6 +32,64 @@ func MakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+type URLRequest struct {
+	URL string `json:"url"`
+}
+
+type URLResponse struct {
+	Result string `json:"result"`
+}
+
+func MakeShortJsonURLHandler(urlService *service.URLService) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		bytes, readErr := io.ReadAll(request.Body)
+
+		if readErr != nil {
+			http.Error(writer, readErr.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if request.Header.Get("Content-Type") != "application/json" {
+			http.Error(writer, "invalid content type", 400)
+			return
+		}
+
+		if len(bytes) == 0 {
+			http.Error(writer, "empty body", http.StatusBadRequest)
+			return
+		}
+
+		reqBody := URLRequest{}
+		deserializeErr := json.Unmarshal(bytes, &reqBody)
+
+		if deserializeErr != nil {
+			http.Error(writer, deserializeErr.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if reqBody.URL == "" {
+			http.Error(writer, "url is empty", http.StatusBadRequest)
+			return
+		}
+
+		shortenURL := urlService.SaveURL(reqBody.URL)
+		response := URLResponse{
+			Result: fmt.Sprintf("http://localhost:8080/%s", shortenURL),
+		}
+
+		responseBytes, serializeErr := json.Marshal(&response)
+
+		if serializeErr != nil {
+			http.Error(writer, serializeErr.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusCreated)
+		writer.Write(responseBytes)
 	}
 }
 

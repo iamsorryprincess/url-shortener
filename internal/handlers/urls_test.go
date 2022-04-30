@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,7 +12,9 @@ import (
 )
 
 type TestHandler struct {
+	url         string
 	method      string
+	contentType string
 	query       string
 	body        string
 	statusCode  int
@@ -23,7 +26,14 @@ type TestHandler struct {
 
 func testHandler(handlerTestInfo TestHandler) {
 	reqBody := []byte(handlerTestInfo.body)
-	request := httptest.NewRequest(handlerTestInfo.method, "/"+handlerTestInfo.query, bytes.NewBuffer(reqBody))
+	request := httptest.NewRequest(handlerTestInfo.method, fmt.Sprintf("%s%s",
+		handlerTestInfo.url,
+		handlerTestInfo.query), bytes.NewBuffer(reqBody))
+
+	if handlerTestInfo.contentType != "" {
+		request.Header.Set("Content-Type", handlerTestInfo.contentType)
+	}
+
 	writer := httptest.NewRecorder()
 
 	handlerTestInfo.handler.ServeHTTP(writer, request)
@@ -41,7 +51,62 @@ func testHandler(handlerTestInfo TestHandler) {
 	}
 }
 
-func TestPostURL(t *testing.T) {
+func TestMakeShortJsonURLHandler(t *testing.T) {
+	urlStorage := storage.InitInMemoryStorage()
+	urlService := service.InitURLService(urlStorage)
+
+	tests := []struct {
+		name                string
+		body                string
+		expectedStatusCode  int
+		expectedContentType string
+	}{
+		{
+			name:                "check with empty url",
+			body:                "",
+			expectedStatusCode:  400,
+			expectedContentType: "text/plain; charset=utf-8",
+		},
+		{
+			name:                "check with empty url in json body",
+			body:                `{"url": ""}`,
+			expectedStatusCode:  400,
+			expectedContentType: "text/plain; charset=utf-8",
+		},
+		{
+			name:                "check non empty url",
+			body:                `{"url": "https://www.youtube.com/"}`,
+			expectedStatusCode:  201,
+			expectedContentType: "application/json",
+		},
+		{
+			name:                "check same url",
+			body:                `{"url": "https://www.youtube.com/"}`,
+			expectedStatusCode:  201,
+			expectedContentType: "application/json",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testInfo := TestHandler{
+				url:         "/api/shorten",
+				method:      http.MethodPost,
+				contentType: "application/json",
+				query:       "",
+				body:        test.body,
+				statusCode:  test.expectedStatusCode,
+				header:      "Content-Type",
+				headerValue: test.expectedContentType,
+				handler:     MakeShortJsonURLHandler(urlService),
+				t:           t,
+			}
+			testHandler(testInfo)
+		})
+	}
+}
+
+func TestMakeShortRawURLHandler(t *testing.T) {
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 
@@ -74,13 +139,14 @@ func TestPostURL(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			testInfo := TestHandler{
+				url:         "/",
 				method:      http.MethodPost,
 				query:       "",
 				body:        test.body,
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     MakeShortURLHandler(urlService),
+				handler:     MakeShortRawURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -88,7 +154,7 @@ func TestPostURL(t *testing.T) {
 	}
 }
 
-func TestGetURL(t *testing.T) {
+func TestGetFullURLHandler(t *testing.T) {
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 	url := "https://www.youtube.com/"
@@ -117,6 +183,7 @@ func TestGetURL(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			testInfo := TestHandler{
+				url:         "/",
 				method:      http.MethodGet,
 				query:       test.query,
 				body:        "",

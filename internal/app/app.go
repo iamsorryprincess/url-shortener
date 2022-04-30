@@ -19,11 +19,9 @@ func Run() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	makeShortURLHandler := handlers.MakeShortURLHandler(urlService)
-	getFullURLHandler := handlers.GetFullURLHandler(urlService)
-
-	r.Post("/", makeShortURLHandler)
-	r.Get("/{URL}", getFullURLHandler)
+	r.Post("/", handlers.MakeShortRawURLHandler(urlService))
+	r.Post("/api/shorten", handlers.MakeShortJsonURLHandler(urlService))
+	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
 
 	err := http.ListenAndServe("localhost:8080", r)
 
