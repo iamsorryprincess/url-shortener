@@ -51,7 +51,7 @@ func testHandler(handlerTestInfo TestHandler) {
 	}
 }
 
-func TestMakeShortJsonURLHandler(t *testing.T) {
+func TestJSONMakeShortURLHandler(t *testing.T) {
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 
@@ -98,7 +98,7 @@ func TestMakeShortJsonURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     MakeShortJsonURLHandler(urlService),
+				handler:     JSONMakeShortURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -106,7 +106,7 @@ func TestMakeShortJsonURLHandler(t *testing.T) {
 	}
 }
 
-func TestMakeShortRawURLHandler(t *testing.T) {
+func TestRawMakeShortURLHandler(t *testing.T) {
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 
@@ -146,7 +146,7 @@ func TestMakeShortRawURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     MakeShortRawURLHandler(urlService),
+				handler:     RawMakeShortURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)

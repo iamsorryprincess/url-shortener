@@ -9,7 +9,7 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-func MakeShortRawURLHandler(urlService *service.URLService) http.HandlerFunc {
+func RawMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -43,7 +43,7 @@ type URLResponse struct {
 	Result string `json:"result"`
 }
 
-func MakeShortJsonURLHandler(urlService *service.URLService) http.HandlerFunc {
+func JSONMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
