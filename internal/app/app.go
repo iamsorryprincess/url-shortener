@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -48,8 +47,7 @@ func Run() {
 	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
 
-	address := fmt.Sprintf("localhost%s", configuration.Address)
-	err := http.ListenAndServe(address, r)
+	err := http.ListenAndServe(configuration.Address, r)
 
 	if err != nil {
 		log.Fatal(err)
