@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/handlers"
@@ -14,19 +14,29 @@ import (
 )
 
 type Configuration struct {
-	Address string
-	BaseURL string
+	Address string `env:"SERVER_ADDRESS" envDefault:":8080"`
+	BaseURL string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 }
 
-func parseConfiguration() *Configuration {
-	return &Configuration{
-		Address: os.Getenv("SERVER_ADDRESS"),
-		BaseURL: os.Getenv("BASE_URL"),
+func parseConfiguration() (*Configuration, error) {
+	configuration := &Configuration{}
+	err := env.Parse(configuration)
+
+	if err != nil {
+		return nil, err
 	}
+
+	return configuration, nil
 }
 
 func Run() {
-	configuration := parseConfiguration()
+	configuration, confErr := parseConfiguration()
+
+	if confErr != nil {
+		log.Fatal(confErr)
+		return
+	}
+
 	urlStorage := storage.InitInMemoryStorage()
 	urlService := service.InitURLService(urlStorage)
 	r := chi.NewRouter()
@@ -38,7 +48,8 @@ func Run() {
 	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
 
-	err := http.ListenAndServe(fmt.Sprintf("localhost%s", configuration.Address), r)
+	address := fmt.Sprintf("localhost%s", configuration.Address)
+	err := http.ListenAndServe(address, r)
 
 	if err != nil {
 		log.Fatal(err)
