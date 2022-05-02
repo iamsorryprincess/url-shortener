@@ -9,7 +9,7 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-func RawMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
+func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -24,9 +24,9 @@ func RawMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 		}
 
 		url := string(bytes)
-		shortURL := urlService.SaveURL(url)
+		shortenURL := urlService.SaveURL(url)
 		writer.WriteHeader(http.StatusCreated)
-		_, err := writer.Write([]byte("http://localhost:8080/" + shortURL))
+		_, err := writer.Write([]byte(fmt.Sprintf("%s/%s", baseURL, shortenURL)))
 
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -43,7 +43,7 @@ type URLResponse struct {
 	Result string `json:"result"`
 }
 
-func JSONMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
+func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -77,7 +77,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 
 		shortenURL := urlService.SaveURL(reqBody.URL)
 		response := URLResponse{
-			Result: fmt.Sprintf("http://localhost:8080/%s", shortenURL),
+			Result: fmt.Sprintf("%s/%s", baseURL, shortenURL),
 		}
 
 		responseBytes, serializeErr := json.Marshal(&response)

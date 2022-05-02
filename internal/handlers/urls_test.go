@@ -98,7 +98,7 @@ func TestJSONMakeShortURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     JSONMakeShortURLHandler(urlService),
+				handler:     JSONMakeShortURLHandler(urlService, "http://localhost:8080"),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -146,7 +146,7 @@ func TestRawMakeShortURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     RawMakeShortURLHandler(urlService),
+				handler:     RawMakeShortURLHandler(urlService, "http://localhost:8080"),
 				t:           t,
 			}
 			testHandler(testInfo)
