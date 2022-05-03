@@ -52,8 +52,8 @@ func testHandler(handlerTestInfo TestHandler) {
 }
 
 func TestJSONMakeShortURLHandler(t *testing.T) {
-	urlStorage := storage.InitInMemoryStorage()
-	urlService := service.InitURLService(urlStorage)
+	urlStorage := storage.NewInMemoryStorage()
+	urlService := service.NewURLService(urlStorage)
 
 	tests := []struct {
 		name                string
@@ -107,8 +107,8 @@ func TestJSONMakeShortURLHandler(t *testing.T) {
 }
 
 func TestRawMakeShortURLHandler(t *testing.T) {
-	urlStorage := storage.InitInMemoryStorage()
-	urlService := service.InitURLService(urlStorage)
+	urlStorage := storage.NewInMemoryStorage()
+	urlService := service.NewURLService(urlStorage)
 
 	tests := []struct {
 		name                string
@@ -155,10 +155,14 @@ func TestRawMakeShortURLHandler(t *testing.T) {
 }
 
 func TestGetFullURLHandler(t *testing.T) {
-	urlStorage := storage.InitInMemoryStorage()
-	urlService := service.InitURLService(urlStorage)
+	urlStorage := storage.NewInMemoryStorage()
+	urlService := service.NewURLService(urlStorage)
 	url := "https://www.youtube.com/"
-	shortURL := urlService.SaveURL(url)
+	shortURL, err := urlService.SaveURL(url)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name               string
