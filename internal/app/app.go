@@ -44,7 +44,6 @@ func Run() {
 		urlService = service.NewURLService(inMemoryStorage)
 	} else {
 		fileStorage, err := storage.NewFileStorage(configuration.StoragePath)
-		defer fileStorage.Close()
 
 		if err != nil {
 			log.Fatal(err)
