@@ -24,7 +24,13 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		}
 
 		url := string(bytes)
-		shortenURL := urlService.SaveURL(url)
+		shortenURL, serviceErr := urlService.SaveURL(url)
+
+		if serviceErr != nil {
+			http.Error(writer, "internal error", http.StatusInternalServerError)
+			return
+		}
+
 		writer.WriteHeader(http.StatusCreated)
 		_, err := writer.Write([]byte(fmt.Sprintf("%s/%s", baseURL, shortenURL)))
 
@@ -75,7 +81,13 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		shortenURL := urlService.SaveURL(reqBody.URL)
+		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL)
+
+		if serviceErr != nil {
+			http.Error(writer, "internal error", http.StatusInternalServerError)
+			return
+		}
+
 		response := URLResponse{
 			Result: fmt.Sprintf("%s/%s", baseURL, shortenURL),
 		}

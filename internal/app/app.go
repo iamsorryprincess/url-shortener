@@ -13,8 +13,9 @@ import (
 )
 
 type Configuration struct {
-	Address string `env:"SERVER_ADDRESS" envDefault:":8080"`
-	BaseURL string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	Address     string `env:"SERVER_ADDRESS" envDefault:":8080"`
+	BaseURL     string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	StoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func parseConfiguration() (*Configuration, error) {
@@ -36,8 +37,23 @@ func Run() {
 		return
 	}
 
-	urlStorage := storage.InitInMemoryStorage()
-	urlService := service.InitURLService(urlStorage)
+	var urlService *service.URLService
+
+	if configuration.StoragePath == "" {
+		inMemoryStorage := storage.NewInMemoryStorage()
+		urlService = service.NewURLService(inMemoryStorage)
+	} else {
+		fileStorage, err := storage.NewFileStorage(configuration.StoragePath)
+		defer fileStorage.Close()
+
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		urlService = service.NewURLService(fileStorage)
+	}
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)

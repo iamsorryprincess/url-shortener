@@ -6,7 +6,7 @@ import (
 )
 
 type Storage interface {
-	SaveURL(url string, shortURL string)
+	SaveURL(url string, shortURL string) error
 	GetURL(shortURL string) string
 }
 
@@ -16,7 +16,20 @@ type URLService struct {
 	randomMatrix []string
 }
 
-func (service *URLService) SaveURL(url string) string {
+func NewURLService(storage Storage) *URLService {
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	return &URLService{
+		storage:    storage,
+		randomizer: r1,
+		randomMatrix: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9",
+			"A", "B", "C", "D", "E", "F", "G", "H", "L",
+			"M", "N", "O", "P", "Q", "R", "T", "S", "U",
+			"V", "W", "X", "Y", "Z"},
+	}
+}
+
+func (service *URLService) SaveURL(url string) (string, error) {
 	n := len(service.randomMatrix) - 1
 	key := ""
 	existingKey := "1"
@@ -30,23 +43,15 @@ func (service *URLService) SaveURL(url string) string {
 		existingKey = service.storage.GetURL(key)
 	}
 
-	service.storage.SaveURL(url, key)
-	return key
+	err := service.storage.SaveURL(url, key)
+
+	if err != nil {
+		return "", err
+	}
+
+	return key, nil
 }
 
 func (service *URLService) GetURL(url string) string {
 	return service.storage.GetURL(url)
-}
-
-func InitURLService(storage Storage) *URLService {
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
-	return &URLService{
-		storage:    storage,
-		randomizer: r1,
-		randomMatrix: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9",
-			"A", "B", "C", "D", "E", "F", "G", "H", "L",
-			"M", "N", "O", "P", "Q", "R", "T", "S", "U",
-			"V", "W", "X", "Y", "Z"},
-	}
 }
