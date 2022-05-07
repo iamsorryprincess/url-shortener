@@ -1,6 +1,7 @@
 package app
 
 import (
+	"flag"
 	"log"
 	"net/http"
 
@@ -26,6 +27,10 @@ func parseConfiguration() (*Configuration, error) {
 		return nil, err
 	}
 
+	flag.StringVar(&configuration.Address, "a", configuration.Address, "server address")
+	flag.StringVar(&configuration.BaseURL, "b", configuration.BaseURL, "base url")
+	flag.StringVar(&configuration.StoragePath, "f", configuration.StoragePath, "file storage path")
+	flag.Parse()
 	return configuration, nil
 }
 
