@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/iamsorryprincess/url-shortener/internal/service"
@@ -223,4 +224,12 @@ func TestGzipMiddleware(t *testing.T) {
 	handler.ServeHTTP(writer, request)
 	response := writer.Result()
 	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
+		t.Errorf("invalid status code\nexpected: 201\nactual: %d", response.StatusCode)
+	}
+
+	if strings.Contains(response.Header.Get("Content-Encoding"), "gzip") {
+		t.Error("Content-Encoding header must not contain gzip")
+	}
 }
