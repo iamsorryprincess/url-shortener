@@ -7,8 +7,9 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/handlers"
+	"github.com/iamsorryprincess/url-shortener/internal/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 	"github.com/iamsorryprincess/url-shortener/internal/storage"
 )
@@ -60,8 +61,9 @@ func Run() {
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(middleware.Gzip)
 
 	r.Post("/", handlers.RawMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))

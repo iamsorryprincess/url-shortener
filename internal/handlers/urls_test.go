@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -200,4 +201,26 @@ func TestGetFullURLHandler(t *testing.T) {
 			testHandler(testInfo)
 		})
 	}
+}
+
+func TestGzipMiddleware(t *testing.T) {
+	reqBody1 := URLRequest{
+		URL: "https://practicum.yandex.ru/learn/go-developer/courses/d4f7d31d-bdf2-4d55-9845-3eb6d29448ea/sprints/21257/topics/2577c77d-8dac-4732-9d2d-48d0f9dbd57b/lessons/54bfce18-6b0e-4de4-a5bd-8a535196dff1/",
+	}
+
+	data, err := json.Marshal(reqBody1)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBuffer(data))
+	request.Header.Set("Content-Type", "application/json")
+	urlStorage := storage.NewInMemoryStorage()
+	urlService := service.NewURLService(urlStorage)
+	handler := JSONMakeShortURLHandler(urlService, "http://localhost:8080")
+	writer := httptest.NewRecorder()
+	handler.ServeHTTP(writer, request)
+	response := writer.Result()
+	defer response.Body.Close()
 }
