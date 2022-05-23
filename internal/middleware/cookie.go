@@ -10,7 +10,10 @@ import (
 	"github.com/iamsorryprincess/url-shortener/pkg/hash"
 )
 
+type cookieUserKey string
+
 const cookieName = "user_data"
+const CookieKey = cookieUserKey(cookieName)
 
 type UserData struct {
 	ID string
@@ -43,7 +46,7 @@ func Cookie(keyManager hash.KeyManager) func(next http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), cookieName, UserData{
+			next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), CookieKey, UserData{
 				ID: userID,
 			})))
 		})

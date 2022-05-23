@@ -150,7 +150,7 @@ func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 }
 
 func getUserID(request *http.Request) string {
-	value, ok := request.Context().Value("user_data").(middleware.UserData)
+	value, ok := request.Context().Value(middleware.CookieKey).(middleware.UserData)
 
 	if !ok {
 		return ""
