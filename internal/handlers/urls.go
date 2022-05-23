@@ -24,7 +24,7 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		}
 
 		url := string(bytes)
-		shortenURL, serviceErr := urlService.SaveURL(url)
+		shortenURL, serviceErr := urlService.SaveURL(url, getUserId(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -81,7 +81,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL)
+		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL, getUserId(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -124,4 +124,30 @@ func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 		writer.Header().Set("Location", targetURL)
 		writer.WriteHeader(http.StatusTemporaryRedirect)
 	}
+}
+
+func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		data := urlService.GetUserData(getUserId(request))
+
+		if data == nil {
+			writer.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		bytes, err := json.Marshal(data)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(bytes)
+	}
+}
+
+func getUserId(request *http.Request) string {
+	return request.Context().Value("user_id").(string)
 }

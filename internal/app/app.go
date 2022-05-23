@@ -12,6 +12,7 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 	"github.com/iamsorryprincess/url-shortener/internal/storage"
+	"github.com/iamsorryprincess/url-shortener/pkg/hash"
 )
 
 type Configuration struct {
@@ -59,19 +60,24 @@ func Run() {
 		urlService = service.NewURLService(fileStorage)
 	}
 
+	keyManager, err := hash.NewGcmKeyManager()
+
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(middleware.Gzip)
+	r.Use(middleware.Cookie(keyManager))
 
 	r.Post("/", handlers.RawMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
+	r.Get("/api/user/urls", handlers.GetUserUrls(urlService))
 
-	err := http.ListenAndServe(configuration.Address, r)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(http.ListenAndServe(configuration.Address, r))
 }

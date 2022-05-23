@@ -2,6 +2,7 @@ package service
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -10,10 +11,17 @@ type Storage interface {
 	GetURL(shortURL string) string
 }
 
+type UserData struct {
+	ShortUrl string `json:"short_url"`
+	FullUrl  string `json:"original_url"`
+}
+
 type URLService struct {
 	storage      Storage
 	randomizer   *rand.Rand
 	randomMatrix []string
+	userMutex    sync.Mutex
+	userUrls     map[string][]UserData
 }
 
 func NewURLService(storage Storage) *URLService {
@@ -26,10 +34,12 @@ func NewURLService(storage Storage) *URLService {
 			"A", "B", "C", "D", "E", "F", "G", "H", "L",
 			"M", "N", "O", "P", "Q", "R", "T", "S", "U",
 			"V", "W", "X", "Y", "Z"},
+		userUrls:  make(map[string][]UserData),
+		userMutex: sync.Mutex{},
 	}
 }
 
-func (service *URLService) SaveURL(url string) (string, error) {
+func (service *URLService) SaveURL(url string, userId string, baseURL string) (string, error) {
 	n := len(service.randomMatrix) - 1
 	key := ""
 	existingKey := "1"
@@ -45,6 +55,13 @@ func (service *URLService) SaveURL(url string) (string, error) {
 
 	err := service.storage.SaveURL(url, key)
 
+	service.userMutex.Lock()
+	service.userUrls[userId] = append(service.userUrls[userId], UserData{
+		FullUrl:  url,
+		ShortUrl: baseURL + "/" + key,
+	})
+	service.userMutex.Unlock()
+
 	if err != nil {
 		return "", err
 	}
@@ -54,4 +71,8 @@ func (service *URLService) SaveURL(url string) (string, error) {
 
 func (service *URLService) GetURL(url string) string {
 	return service.storage.GetURL(url)
+}
+
+func (service *URLService) GetUserData(userId string) []UserData {
+	return service.userUrls[userId]
 }
