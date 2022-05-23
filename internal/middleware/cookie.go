@@ -10,7 +10,11 @@ import (
 	"github.com/iamsorryprincess/url-shortener/pkg/hash"
 )
 
-const cookieName = "user_id"
+const cookieName = "user_data"
+
+type UserData struct {
+	ID string
+}
 
 func Cookie(keyManager hash.KeyManager) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -19,10 +23,10 @@ func Cookie(keyManager hash.KeyManager) func(next http.Handler) http.Handler {
 
 			if err != nil {
 				if errors.Is(http.ErrNoCookie, err) {
-					userId := uuid.New().String()
+					userID := uuid.New().String()
 					cookie = &http.Cookie{
 						Name:  cookieName,
-						Value: keyManager.Encode(userId),
+						Value: keyManager.Encode(userID),
 						Path:  "/",
 					}
 					http.SetCookie(writer, cookie)
@@ -32,14 +36,16 @@ func Cookie(keyManager hash.KeyManager) func(next http.Handler) http.Handler {
 				}
 			}
 
-			userId, err := keyManager.Decode(cookie.Value)
+			userID, err := keyManager.Decode(cookie.Value)
 
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), cookieName, userId)))
+			next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), cookieName, UserData{
+				ID: userID,
+			})))
 		})
 	}
 }

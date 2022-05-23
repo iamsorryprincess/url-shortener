@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/iamsorryprincess/url-shortener/internal/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
@@ -24,7 +25,7 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		}
 
 		url := string(bytes)
-		shortenURL, serviceErr := urlService.SaveURL(url, getUserId(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(url, getUserID(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -81,7 +82,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL, getUserId(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL, getUserID(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -128,7 +129,7 @@ func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 
 func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		data := urlService.GetUserData(getUserId(request))
+		data := urlService.GetUserData(getUserID(request))
 
 		if data == nil {
 			writer.WriteHeader(http.StatusNoContent)
@@ -148,12 +149,12 @@ func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 	}
 }
 
-func getUserId(request *http.Request) string {
-	value, ok := request.Context().Value("user_id").(string)
+func getUserID(request *http.Request) string {
+	value, ok := request.Context().Value("user_data").(middleware.UserData)
 
 	if !ok {
 		return ""
 	}
 
-	return value
+	return value.ID
 }

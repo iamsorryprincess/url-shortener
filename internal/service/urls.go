@@ -12,8 +12,8 @@ type Storage interface {
 }
 
 type UserData struct {
-	ShortUrl string `json:"short_url"`
-	FullUrl  string `json:"original_url"`
+	ShortURL string `json:"short_url"`
+	FullURL  string `json:"original_url"`
 }
 
 type URLService struct {
@@ -39,7 +39,7 @@ func NewURLService(storage Storage) *URLService {
 	}
 }
 
-func (service *URLService) SaveURL(url string, userId string, baseURL string) (string, error) {
+func (service *URLService) SaveURL(url string, userID string, baseURL string) (string, error) {
 	n := len(service.randomMatrix) - 1
 	key := ""
 	existingKey := "1"
@@ -56,9 +56,9 @@ func (service *URLService) SaveURL(url string, userId string, baseURL string) (s
 	err := service.storage.SaveURL(url, key)
 
 	service.userMutex.Lock()
-	service.userUrls[userId] = append(service.userUrls[userId], UserData{
-		FullUrl:  url,
-		ShortUrl: baseURL + "/" + key,
+	service.userUrls[userID] = append(service.userUrls[userID], UserData{
+		FullURL:  url,
+		ShortURL: baseURL + "/" + key,
 	})
 	service.userMutex.Unlock()
 
@@ -73,6 +73,6 @@ func (service *URLService) GetURL(url string) string {
 	return service.storage.GetURL(url)
 }
 
-func (service *URLService) GetUserData(userId string) []UserData {
-	return service.userUrls[userId]
+func (service *URLService) GetUserData(userID string) []UserData {
+	return service.userUrls[userID]
 }
