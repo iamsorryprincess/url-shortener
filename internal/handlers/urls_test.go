@@ -160,7 +160,7 @@ func TestGetFullURLHandler(t *testing.T) {
 	urlStorage := storage.NewInMemoryStorage()
 	urlService := service.NewURLService(urlStorage)
 	url := "https://www.youtube.com/"
-	shortURL, err := urlService.SaveURL(url)
+	shortURL, err := urlService.SaveURL(url, "test", "http://localhost:8080")
 
 	if err != nil {
 		t.Fatal(err)

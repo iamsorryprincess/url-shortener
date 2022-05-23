@@ -149,5 +149,11 @@ func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 }
 
 func getUserId(request *http.Request) string {
-	return request.Context().Value("user_id").(string)
+	value, ok := request.Context().Value("user_id").(string)
+
+	if !ok {
+		return ""
+	}
+
+	return value
 }
