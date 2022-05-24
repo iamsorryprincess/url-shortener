@@ -50,20 +50,58 @@ func Run() {
 		return
 	}
 
+	var db *sql.DB
 	var urlService *service.URLService
 
-	if configuration.StoragePath == "" {
-		inMemoryStorage := storage.NewInMemoryStorage()
-		urlService = service.NewURLService(inMemoryStorage)
-	} else {
-		fileStorage, err := storage.NewFileStorage(configuration.StoragePath)
+	if configuration.StoragePath != "" && configuration.DBConnectionString != "" {
+		var err error
+		db, err = initDB(configuration.DBConnectionString)
 
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 
+		defer db.Close()
+		postgresqlStorage, err := storage.NewPostgresqlStorage(db)
+
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		urlService = service.NewURLService(postgresqlStorage)
+	} else if configuration.DBConnectionString != "" {
+		var err error
+		db, err = initDB(configuration.DBConnectionString)
+
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		defer db.Close()
+		postgresqlStorage, err := storage.NewPostgresqlStorage(db)
+
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		urlService = service.NewURLService(postgresqlStorage)
+	} else if configuration.StoragePath != "" {
+		fileStorage, file, err := storage.NewFileStorage(configuration.StoragePath)
+
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		defer file.Close()
 		urlService = service.NewURLService(fileStorage)
+	} else {
+		inMemoryStorage := storage.NewInMemoryStorage()
+		urlService = service.NewURLService(inMemoryStorage)
 	}
 
 	keyManager, err := hash.NewGcmKeyManager()
@@ -86,27 +124,11 @@ func Run() {
 	r.Get("/api/user/urls", handlers.GetUserUrls(urlService))
 
 	if configuration.DBConnectionString != "" {
-		db, err := sql.Open("pgx", configuration.DBConnectionString)
-
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
-
-		defer db.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-
-		if err = db.PingContext(ctx); err != nil {
-			log.Fatal(err)
-			return
-		}
-
 		r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {
-			err := db.PingContext(request.Context())
+			pingErr := db.PingContext(request.Context())
 
-			if err != nil {
-				log.Println(err)
+			if pingErr != nil {
+				log.Println(pingErr)
 				writer.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -116,4 +138,22 @@ func Run() {
 	}
 
 	log.Fatal(http.ListenAndServe(configuration.Address, r))
+}
+
+func initDB(connectionString string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", connectionString)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err = db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	return db, nil
 }

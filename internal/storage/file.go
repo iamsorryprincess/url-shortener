@@ -2,13 +2,16 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-type FileStorage struct {
+type fileStorage struct {
 	mutex   sync.Mutex
 	storage map[string]string
 	file    *os.File
@@ -20,11 +23,11 @@ type storageData struct {
 	FullURL  string `json:"fullUrl"`
 }
 
-func NewFileStorage(filepath string) (*FileStorage, error) {
+func NewFileStorage(filepath string) (service.Storage, io.Closer, error) {
 	file, openFileErr := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 
 	if openFileErr != nil {
-		return nil, openFileErr
+		return nil, nil, openFileErr
 	}
 
 	storage := make(map[string]string)
@@ -37,28 +40,30 @@ func NewFileStorage(filepath string) (*FileStorage, error) {
 			if readErr == io.EOF {
 				break
 			}
-			return nil, readErr
+			file.Close()
+			return nil, nil, readErr
 		}
 
 		data := &storageData{}
 		unmarshalErr := json.Unmarshal(bytes, data)
 
 		if unmarshalErr != nil {
-			return nil, unmarshalErr
+			file.Close()
+			return nil, nil, unmarshalErr
 		}
 
 		storage[data.ShortURL] = data.FullURL
 	}
 
-	return &FileStorage{
+	return &fileStorage{
 		mutex:   sync.Mutex{},
 		storage: storage,
 		file:    file,
 		encoder: json.NewEncoder(file),
-	}, nil
+	}, file, nil
 }
 
-func (s *FileStorage) SaveURL(url string, shortURL string) error {
+func (s *fileStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.storage[shortURL] = url
@@ -77,10 +82,6 @@ func (s *FileStorage) SaveURL(url string, shortURL string) error {
 	return nil
 }
 
-func (s *FileStorage) GetURL(shortURL string) string {
-	return s.storage[shortURL]
-}
-
-func (s *FileStorage) Close() error {
-	return s.file.Close()
+func (s *fileStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
+	return s.storage[shortURL], nil
 }

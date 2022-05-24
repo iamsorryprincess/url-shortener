@@ -1,14 +1,15 @@
 package service
 
 import (
-	"math/rand"
+	"context"
 	"sync"
-	"time"
+
+	"github.com/google/uuid"
 )
 
 type Storage interface {
-	SaveURL(url string, shortURL string) error
-	GetURL(shortURL string) string
+	SaveURL(ctx context.Context, url string, shortURL string) error
+	GetURL(ctx context.Context, shortURL string) (string, error)
 }
 
 type UserData struct {
@@ -17,43 +18,22 @@ type UserData struct {
 }
 
 type URLService struct {
-	storage      Storage
-	randomizer   *rand.Rand
-	randomMatrix []string
-	userMutex    sync.Mutex
-	userUrls     map[string][]UserData
+	storage   Storage
+	userMutex sync.Mutex
+	userUrls  map[string][]UserData
 }
 
 func NewURLService(storage Storage) *URLService {
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
 	return &URLService{
-		storage:    storage,
-		randomizer: r1,
-		randomMatrix: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9",
-			"A", "B", "C", "D", "E", "F", "G", "H", "L",
-			"M", "N", "O", "P", "Q", "R", "T", "S", "U",
-			"V", "W", "X", "Y", "Z"},
+		storage:   storage,
 		userUrls:  make(map[string][]UserData),
 		userMutex: sync.Mutex{},
 	}
 }
 
-func (service *URLService) SaveURL(url string, userID string, baseURL string) (string, error) {
-	n := len(service.randomMatrix) - 1
-	key := ""
-	existingKey := "1"
-
-	for existingKey != "" {
-		key = ""
-		for i := 1; i <= 10; i++ {
-			index := service.randomizer.Intn(n)
-			key += service.randomMatrix[index]
-		}
-		existingKey = service.storage.GetURL(key)
-	}
-
-	err := service.storage.SaveURL(url, key)
+func (service *URLService) SaveURL(ctx context.Context, url string, userID string, baseURL string) (string, error) {
+	key := uuid.New().String()
+	err := service.storage.SaveURL(ctx, url, key)
 
 	service.userMutex.Lock()
 	service.userUrls[userID] = append(service.userUrls[userID], UserData{
@@ -69,8 +49,8 @@ func (service *URLService) SaveURL(url string, userID string, baseURL string) (s
 	return key, nil
 }
 
-func (service *URLService) GetURL(url string) string {
-	return service.storage.GetURL(url)
+func (service *URLService) GetURL(ctx context.Context, url string) (string, error) {
+	return service.storage.GetURL(ctx, url)
 }
 
 func (service *URLService) GetUserData(userID string) []UserData {

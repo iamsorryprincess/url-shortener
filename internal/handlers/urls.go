@@ -25,7 +25,7 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		}
 
 		url := string(bytes)
-		shortenURL, serviceErr := urlService.SaveURL(url, getUserID(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(request.Context(), url, getUserID(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -82,7 +82,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		shortenURL, serviceErr := urlService.SaveURL(reqBody.URL, getUserID(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(request.Context(), reqBody.URL, getUserID(request), baseURL)
 
 		if serviceErr != nil {
 			http.Error(writer, "internal error", http.StatusInternalServerError)
@@ -115,7 +115,12 @@ func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 			return
 		}
 
-		targetURL := urlService.GetURL(url)
+		targetURL, err := urlService.GetURL(request.Context(), url)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		if targetURL == "" {
 			http.NotFound(writer, request)

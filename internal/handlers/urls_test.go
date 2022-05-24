@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -160,7 +161,7 @@ func TestGetFullURLHandler(t *testing.T) {
 	urlStorage := storage.NewInMemoryStorage()
 	urlService := service.NewURLService(urlStorage)
 	url := "https://www.youtube.com/"
-	shortURL, err := urlService.SaveURL(url, "test", "http://localhost:8080")
+	shortURL, err := urlService.SaveURL(context.Background(), url, "test", "http://localhost:8080")
 
 	if err != nil {
 		t.Fatal(err)

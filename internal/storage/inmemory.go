@@ -1,28 +1,31 @@
 package storage
 
 import (
+	"context"
 	"sync"
+
+	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-type InMemoryStorage struct {
+type inMemoryStorage struct {
 	mutex    sync.Mutex
 	localMap map[string]string
 }
 
-func NewInMemoryStorage() *InMemoryStorage {
-	return &InMemoryStorage{
+func NewInMemoryStorage() service.Storage {
+	return &inMemoryStorage{
 		localMap: make(map[string]string),
 		mutex:    sync.Mutex{},
 	}
 }
 
-func (storage *InMemoryStorage) SaveURL(url string, shortURL string) error {
+func (storage *inMemoryStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
 	storage.mutex.Lock()
 	storage.localMap[shortURL] = url
 	storage.mutex.Unlock()
 	return nil
 }
 
-func (storage *InMemoryStorage) GetURL(shortURL string) string {
-	return storage.localMap[shortURL]
+func (storage *inMemoryStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
+	return storage.localMap[shortURL], nil
 }
