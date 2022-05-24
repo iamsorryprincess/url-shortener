@@ -23,7 +23,7 @@ type Configuration struct {
 	Address            string `env:"SERVER_ADDRESS" envDefault:":8080"`
 	BaseURL            string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	StoragePath        string `env:"FILE_STORAGE_PATH"`
-	DbConnectionString string `env:"DATABASE_DSN" envDefault:""`
+	DBConnectionString string `env:"DATABASE_DSN" envDefault:""`
 }
 
 func parseConfiguration() (*Configuration, error) {
@@ -37,7 +37,7 @@ func parseConfiguration() (*Configuration, error) {
 	flag.StringVar(&configuration.Address, "a", configuration.Address, "server address")
 	flag.StringVar(&configuration.BaseURL, "b", configuration.BaseURL, "base url")
 	flag.StringVar(&configuration.StoragePath, "f", configuration.StoragePath, "file storage path")
-	flag.StringVar(&configuration.DbConnectionString, "d", configuration.DbConnectionString, "db connection string")
+	flag.StringVar(&configuration.DBConnectionString, "d", configuration.DBConnectionString, "db connection string")
 	flag.Parse()
 	return configuration, nil
 }
@@ -73,27 +73,6 @@ func Run() {
 		return
 	}
 
-	if configuration.DbConnectionString == "" {
-		log.Fatal("empty db connection string")
-		return
-	}
-
-	db, err := sql.Open("pgx", configuration.DbConnectionString)
-
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	defer db.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	if err = db.PingContext(ctx); err != nil {
-		log.Fatal(err)
-		return
-	}
-
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.Logger)
@@ -106,17 +85,35 @@ func Run() {
 	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
 	r.Get("/api/user/urls", handlers.GetUserUrls(urlService))
 
-	r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {
-		err := db.PingContext(request.Context())
+	if configuration.DBConnectionString != "" {
+		db, err := sql.Open("pgx", configuration.DBConnectionString)
 
 		if err != nil {
-			log.Println(err)
-			writer.WriteHeader(http.StatusInternalServerError)
+			log.Fatal(err)
 			return
 		}
 
-		writer.WriteHeader(http.StatusOK)
-	})
+		defer db.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		if err = db.PingContext(ctx); err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {
+			err := db.PingContext(request.Context())
+
+			if err != nil {
+				log.Println(err)
+				writer.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			writer.WriteHeader(http.StatusOK)
+		})
+	}
 
 	log.Fatal(http.ListenAndServe(configuration.Address, r))
 }
