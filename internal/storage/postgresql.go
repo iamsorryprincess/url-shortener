@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/iamsorryprincess/url-shortener/internal/service"
 	"github.com/iamsorryprincess/url-shortener/internal/storage/migrations"
 )
 
@@ -12,7 +11,7 @@ type postgresqlStorage struct {
 	db *sql.DB
 }
 
-func NewPostgresqlStorage(db *sql.DB) (service.Storage, error) {
+func NewPostgresqlStorage(db *sql.DB) (Storage, error) {
 	err := migrations.Migrate(context.Background(), db)
 
 	if err != nil {
@@ -43,4 +42,31 @@ func (s *postgresqlStorage) GetURL(ctx context.Context, shortURL string) (string
 	}
 
 	return result, nil
+}
+
+func (s *postgresqlStorage) SaveBatch(ctx context.Context, input []URLInput) error {
+	tx, err := s.db.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO public.urls (short_url, original_url) VALUES ($1, $2)")
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	for _, inputData := range input {
+		_, err = stmt.ExecContext(ctx, inputData.ShortUrl, inputData.FullUrl)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

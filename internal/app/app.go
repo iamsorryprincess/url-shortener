@@ -120,6 +120,7 @@ func Run() {
 
 	r.Post("/", handlers.RawMakeShortURLHandler(urlService, configuration.BaseURL))
 	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))
+	r.Post("/api/shorten/batch", handlers.SaveBatchURLHandler(urlService, configuration.BaseURL))
 	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
 	r.Get("/api/user/urls", handlers.GetUserUrls(urlService))
 

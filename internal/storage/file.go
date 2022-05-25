@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"sync"
-
-	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
 type fileStorage struct {
@@ -23,7 +22,7 @@ type storageData struct {
 	FullURL  string `json:"fullUrl"`
 }
 
-func NewFileStorage(filepath string) (service.Storage, io.Closer, error) {
+func NewFileStorage(filepath string) (Storage, io.Closer, error) {
 	file, openFileErr := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 
 	if openFileErr != nil {
@@ -84,4 +83,8 @@ func (s *fileStorage) SaveURL(ctx context.Context, url string, shortURL string) 
 
 func (s *fileStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
 	return s.storage[shortURL], nil
+}
+
+func (s *fileStorage) SaveBatch(ctx context.Context, batchInput []URLInput) error {
+	return errors.New("method not implemented")
 }

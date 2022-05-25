@@ -5,12 +5,8 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/iamsorryprincess/url-shortener/internal/storage"
 )
-
-type Storage interface {
-	SaveURL(ctx context.Context, url string, shortURL string) error
-	GetURL(ctx context.Context, shortURL string) (string, error)
-}
 
 type UserData struct {
 	ShortURL string `json:"short_url"`
@@ -18,12 +14,12 @@ type UserData struct {
 }
 
 type URLService struct {
-	storage   Storage
+	storage   storage.Storage
 	userMutex sync.Mutex
 	userUrls  map[string][]UserData
 }
 
-func NewURLService(storage Storage) *URLService {
+func NewURLService(storage storage.Storage) *URLService {
 	return &URLService{
 		storage:   storage,
 		userUrls:  make(map[string][]UserData),
@@ -55,4 +51,39 @@ func (service *URLService) GetURL(ctx context.Context, url string) (string, erro
 
 func (service *URLService) GetUserData(userID string) []UserData {
 	return service.userUrls[userID]
+}
+
+type URLInput struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type URLResult struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (service *URLService) SaveBatch(ctx context.Context, baseURL string, input []URLInput) ([]URLResult, error) {
+	batchData := make([]storage.URLInput, len(input))
+	result := make([]URLResult, len(input))
+
+	for index, inputData := range input {
+		id := uuid.New().String()
+		batchData[index] = storage.URLInput{
+			ShortUrl: id,
+			FullUrl:  inputData.OriginalURL,
+		}
+		result[index] = URLResult{
+			CorrelationID: inputData.CorrelationID,
+			ShortURL:      baseURL + "/" + id,
+		}
+	}
+
+	err := service.storage.SaveBatch(ctx, batchData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

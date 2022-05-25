@@ -2,9 +2,8 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"sync"
-
-	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
 type inMemoryStorage struct {
@@ -12,7 +11,7 @@ type inMemoryStorage struct {
 	localMap map[string]string
 }
 
-func NewInMemoryStorage() service.Storage {
+func NewInMemoryStorage() Storage {
 	return &inMemoryStorage{
 		localMap: make(map[string]string),
 		mutex:    sync.Mutex{},
@@ -28,4 +27,8 @@ func (storage *inMemoryStorage) SaveURL(ctx context.Context, url string, shortUR
 
 func (storage *inMemoryStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
 	return storage.localMap[shortURL], nil
+}
+
+func (storage *inMemoryStorage) SaveBatch(ctx context.Context, batchData []URLInput) error {
+	return errors.New("method not implemented")
 }

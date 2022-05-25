@@ -154,6 +154,53 @@ func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 	}
 }
 
+func SaveBatchURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Content-Type") != "application/json" {
+			writer.WriteHeader(http.StatusUnsupportedMediaType)
+			return
+		}
+
+		bytes, err := io.ReadAll(request.Body)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if len(bytes) == 0 {
+			http.Error(writer, "empty body", http.StatusBadRequest)
+			return
+		}
+
+		var reqBody []service.URLInput
+		err = json.Unmarshal(bytes, &reqBody)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		batchResult, err := urlService.SaveBatch(request.Context(), baseURL, reqBody)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		result, err := json.Marshal(batchResult)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		writer.Write(result)
+	}
+}
+
 func getUserID(request *http.Request) string {
 	value, ok := request.Context().Value(middleware.CookieKey).(middleware.UserData)
 
