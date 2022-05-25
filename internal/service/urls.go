@@ -29,17 +29,17 @@ func NewURLService(storage storage.Storage) *URLService {
 	}
 }
 
-type UrlUniqueError struct {
+type URLUniqueError struct {
 	OriginalURL string
 	ShortURL    string
 	err         error
 }
 
-func (e *UrlUniqueError) Error() string {
+func (e *URLUniqueError) Error() string {
 	return fmt.Sprintf("original url %s already exist; shortURL: %s", e.OriginalURL, e.ShortURL)
 }
 
-func (e *UrlUniqueError) Unwrap() error {
+func (e *URLUniqueError) Unwrap() error {
 	return e.err
 }
 
@@ -55,7 +55,7 @@ func (service *URLService) SaveURL(ctx context.Context, url string, userID strin
 				return "", getErr
 			}
 
-			return "", &UrlUniqueError{
+			return "", &URLUniqueError{
 				OriginalURL: url,
 				ShortURL:    shortURL,
 			}

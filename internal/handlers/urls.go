@@ -29,7 +29,7 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		shortenURL, serviceErr := urlService.SaveURL(request.Context(), url, getUserID(request), baseURL)
 
 		if serviceErr != nil {
-			var urlErr *service.UrlUniqueError
+			var urlErr *service.URLUniqueError
 			if errors.As(serviceErr, &urlErr) {
 				writeURLResponseRaw(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
 				return
@@ -86,7 +86,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 		shortenURL, serviceErr := urlService.SaveURL(request.Context(), reqBody.URL, getUserID(request), baseURL)
 
 		if serviceErr != nil {
-			var urlErr *service.UrlUniqueError
+			var urlErr *service.URLUniqueError
 			if errors.As(serviceErr, &urlErr) {
 				writeURLResponseJSON(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
 				return
