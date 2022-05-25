@@ -32,3 +32,7 @@ func (storage *inMemoryStorage) GetURL(ctx context.Context, shortURL string) (st
 func (storage *inMemoryStorage) SaveBatch(ctx context.Context, batchData []URLInput) error {
 	return errors.New("method not implemented")
 }
+
+func (storage *inMemoryStorage) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
+	return "", errors.New("method not implemented")
+}

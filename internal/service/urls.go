@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -27,9 +29,40 @@ func NewURLService(storage storage.Storage) *URLService {
 	}
 }
 
+type UrlUniqueError struct {
+	OriginalURL string
+	ShortURL    string
+	err         error
+}
+
+func (e *UrlUniqueError) Error() string {
+	return fmt.Sprintf("original url %s already exist; shortURL: %s", e.OriginalURL, e.ShortURL)
+}
+
+func (e *UrlUniqueError) Unwrap() error {
+	return e.err
+}
+
 func (service *URLService) SaveURL(ctx context.Context, url string, userID string, baseURL string) (string, error) {
 	key := uuid.New().String()
 	err := service.storage.SaveURL(ctx, url, key)
+
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExist) {
+			shortURL, getErr := service.storage.GetByOriginalURL(ctx, url)
+
+			if getErr != nil {
+				return "", getErr
+			}
+
+			return "", &UrlUniqueError{
+				OriginalURL: url,
+				ShortURL:    shortURL,
+			}
+		}
+
+		return "", err
+	}
 
 	service.userMutex.Lock()
 	service.userUrls[userID] = append(service.userUrls[userID], UserData{
@@ -37,11 +70,6 @@ func (service *URLService) SaveURL(ctx context.Context, url string, userID strin
 		ShortURL: baseURL + "/" + key,
 	})
 	service.userMutex.Unlock()
-
-	if err != nil {
-		return "", err
-	}
-
 	return key, nil
 }
 

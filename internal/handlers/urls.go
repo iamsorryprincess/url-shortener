@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,17 +29,17 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		shortenURL, serviceErr := urlService.SaveURL(request.Context(), url, getUserID(request), baseURL)
 
 		if serviceErr != nil {
+			var urlErr *service.UrlUniqueError
+			if errors.As(serviceErr, &urlErr) {
+				writeURLResponseRaw(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
+				return
+			}
+
 			http.Error(writer, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		writer.WriteHeader(http.StatusCreated)
-		_, err := writer.Write([]byte(fmt.Sprintf("%s/%s", baseURL, shortenURL)))
-
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		writeURLResponseRaw(writer, baseURL, shortenURL, http.StatusCreated)
 	}
 }
 
@@ -85,24 +86,17 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 		shortenURL, serviceErr := urlService.SaveURL(request.Context(), reqBody.URL, getUserID(request), baseURL)
 
 		if serviceErr != nil {
+			var urlErr *service.UrlUniqueError
+			if errors.As(serviceErr, &urlErr) {
+				writeURLResponseJSON(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
+				return
+			}
+
 			http.Error(writer, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		response := URLResponse{
-			Result: fmt.Sprintf("%s/%s", baseURL, shortenURL),
-		}
-
-		responseBytes, serializeErr := json.Marshal(&response)
-
-		if serializeErr != nil {
-			http.Error(writer, serializeErr.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(http.StatusCreated)
-		writer.Write(responseBytes)
+		writeURLResponseJSON(writer, baseURL, shortenURL, http.StatusCreated)
 	}
 }
 
@@ -209,4 +203,31 @@ func getUserID(request *http.Request) string {
 	}
 
 	return value.ID
+}
+
+func writeURLResponseRaw(writer http.ResponseWriter, baseURL string, shortenURL string, statusCode int) {
+	writer.WriteHeader(statusCode)
+	_, err := writer.Write([]byte(fmt.Sprintf("%s/%s", baseURL, shortenURL)))
+
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func writeURLResponseJSON(writer http.ResponseWriter, baseURL string, shortenURL string, statusCode int) {
+	response := URLResponse{
+		Result: fmt.Sprintf("%s/%s", baseURL, shortenURL),
+	}
+
+	responseBytes, serializeErr := json.Marshal(&response)
+
+	if serializeErr != nil {
+		http.Error(writer, serializeErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	writer.Write(responseBytes)
 }

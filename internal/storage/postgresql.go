@@ -3,8 +3,10 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/iamsorryprincess/url-shortener/internal/storage/migrations"
+	"github.com/jackc/pgx"
 )
 
 type postgresqlStorage struct {
@@ -24,9 +26,14 @@ func NewPostgresqlStorage(db *sql.DB) (Storage, error) {
 }
 
 func (s *postgresqlStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT INTO public.urls (short_url, original_url)\nVALUES ($1, $2);", shortURL, url)
+	_, err := s.db.ExecContext(ctx, "INSERT INTO public.urls (short_url, original_url) VALUES ($1, $2);", shortURL, url)
+
+	var pgError pgx.PgError
 
 	if err != nil {
+		if errors.As(err, &pgError) && pgError.Code == "23505" {
+			return ErrAlreadyExist
+		}
 		return err
 	}
 
@@ -69,4 +76,15 @@ func (s *postgresqlStorage) SaveBatch(ctx context.Context, input []URLInput) err
 	}
 
 	return tx.Commit()
+}
+
+func (s *postgresqlStorage) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
+	result := ""
+	err := s.db.QueryRowContext(ctx, "SELECT short_url FROM public.urls WHERE original_url=$1", originalURL).Scan(&result)
+
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
