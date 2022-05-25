@@ -196,7 +196,7 @@ func SaveBatchURLHandler(urlService *service.URLService, baseURL string) http.Ha
 		}
 
 		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(http.StatusOK)
+		writer.WriteHeader(http.StatusCreated)
 		writer.Write(result)
 	}
 }

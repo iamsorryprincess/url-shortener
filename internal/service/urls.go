@@ -70,8 +70,8 @@ func (service *URLService) SaveBatch(ctx context.Context, baseURL string, input 
 	for index, inputData := range input {
 		id := uuid.New().String()
 		batchData[index] = storage.URLInput{
-			ShortUrl: id,
-			FullUrl:  inputData.OriginalURL,
+			ShortURL: id,
+			FullURL:  inputData.OriginalURL,
 		}
 		result[index] = URLResult{
 			CorrelationID: inputData.CorrelationID,

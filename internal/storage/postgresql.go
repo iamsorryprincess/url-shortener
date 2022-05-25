@@ -61,7 +61,7 @@ func (s *postgresqlStorage) SaveBatch(ctx context.Context, input []URLInput) err
 	defer stmt.Close()
 
 	for _, inputData := range input {
-		_, err = stmt.ExecContext(ctx, inputData.ShortUrl, inputData.FullUrl)
+		_, err = stmt.ExecContext(ctx, inputData.ShortURL, inputData.FullURL)
 
 		if err != nil {
 			return err

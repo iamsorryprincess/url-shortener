@@ -3,8 +3,8 @@ package storage
 import "context"
 
 type URLInput struct {
-	ShortUrl string
-	FullUrl  string
+	ShortURL string
+	FullURL  string
 }
 
 type Storage interface {
