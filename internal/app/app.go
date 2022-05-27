@@ -3,47 +3,19 @@ package app
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"log"
-	"net/http"
 	"time"
 
-	"github.com/caarlos0/env/v6"
-	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/iamsorryprincess/url-shortener/internal/handlers"
-	"github.com/iamsorryprincess/url-shortener/internal/middleware"
+	"github.com/iamsorryprincess/url-shortener/internal/config"
+	"github.com/iamsorryprincess/url-shortener/internal/server"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 	"github.com/iamsorryprincess/url-shortener/internal/storage"
 	"github.com/iamsorryprincess/url-shortener/pkg/hash"
 	_ "github.com/jackc/pgx/stdlib"
 )
 
-type Configuration struct {
-	Address            string `env:"SERVER_ADDRESS" envDefault:":8080"`
-	BaseURL            string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	StoragePath        string `env:"FILE_STORAGE_PATH"`
-	DBConnectionString string `env:"DATABASE_DSN" envDefault:""`
-}
-
-func parseConfiguration() (*Configuration, error) {
-	configuration := &Configuration{}
-	err := env.Parse(configuration)
-
-	if err != nil {
-		return nil, err
-	}
-
-	flag.StringVar(&configuration.Address, "a", configuration.Address, "server address")
-	flag.StringVar(&configuration.BaseURL, "b", configuration.BaseURL, "base url")
-	flag.StringVar(&configuration.StoragePath, "f", configuration.StoragePath, "file storage path")
-	flag.StringVar(&configuration.DBConnectionString, "d", configuration.DBConnectionString, "db connection string")
-	flag.Parse()
-	return configuration, nil
-}
-
 func Run() {
-	configuration, confErr := parseConfiguration()
+	configuration, confErr := config.ParseConfiguration()
 
 	if confErr != nil {
 		log.Fatal(confErr)
@@ -111,34 +83,8 @@ func Run() {
 		return
 	}
 
-	r := chi.NewRouter()
-
-	r.Use(chimiddleware.Logger)
-	r.Use(chimiddleware.Recoverer)
-	r.Use(middleware.Gzip)
-	r.Use(middleware.Cookie(keyManager))
-
-	r.Post("/", handlers.RawMakeShortURLHandler(urlService, configuration.BaseURL))
-	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(urlService, configuration.BaseURL))
-	r.Post("/api/shorten/batch", handlers.SaveBatchURLHandler(urlService, configuration.BaseURL))
-	r.Get("/{URL}", handlers.GetFullURLHandler(urlService))
-	r.Get("/api/user/urls", handlers.GetUserUrls(urlService))
-
-	if configuration.DBConnectionString != "" {
-		r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {
-			pingErr := db.PingContext(request.Context())
-
-			if pingErr != nil {
-				log.Println(pingErr)
-				writer.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			writer.WriteHeader(http.StatusOK)
-		})
-	}
-
-	log.Fatal(http.ListenAndServe(configuration.Address, r))
+	httpServer := server.NewServer(configuration, urlService, keyManager, db)
+	log.Fatal(httpServer.Run())
 }
 
 func initDB(connectionString string) (*sql.DB, error) {
