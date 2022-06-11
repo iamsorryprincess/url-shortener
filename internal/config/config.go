@@ -11,6 +11,8 @@ type Configuration struct {
 	BaseURL            string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	StoragePath        string `env:"FILE_STORAGE_PATH"`
 	DBConnectionString string `env:"DATABASE_DSN" envDefault:""`
+	WorkersCount       int    `env:"WORKERS_COUNT" envDefault:"1"`
+	WorkerPoolSize     int    `env:"WORKER_POOL_SIZE" envDefault:"1"`
 }
 
 func ParseConfiguration() (*Configuration, error) {
