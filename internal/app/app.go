@@ -89,7 +89,7 @@ func Run() {
 		return
 	}
 
-	batchWorker.Start(1, 5)
+	batchWorker.Start(1, 2)
 	defer batchWorker.Stop()
 	httpServer := server.NewServer(configuration, urlService, keyManager, db, batchWorker)
 	log.Fatal(httpServer.Run())
