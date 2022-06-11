@@ -46,3 +46,7 @@ func (storage *inMemoryStorage) SaveBatch(ctx context.Context, batchData []URLIn
 func (storage *inMemoryStorage) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
 	return "", errors.New("method not implemented")
 }
+
+func (storage *inMemoryStorage) DeleteBatch(input []DeleteURLInput) error {
+	return errors.New("method not implemented")
+}

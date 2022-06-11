@@ -12,6 +12,7 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/handlers"
 	"github.com/iamsorryprincess/url-shortener/internal/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
+	"github.com/iamsorryprincess/url-shortener/internal/worker"
 	"github.com/iamsorryprincess/url-shortener/pkg/hash"
 )
 
@@ -23,7 +24,8 @@ func NewServer(
 	configuration *config.Configuration,
 	service *service.URLService,
 	keyManager hash.KeyManager,
-	db *sql.DB) *Server {
+	db *sql.DB,
+	worker *worker.Worker) *Server {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.Logger)
@@ -36,7 +38,7 @@ func NewServer(
 	r.Post("/api/shorten/batch", handlers.SaveBatchURLHandler(service))
 	r.Get("/{URL}", handlers.GetFullURLHandler(service))
 	r.Get("/api/user/urls", handlers.GetUserUrls(service))
-	r.Delete("/api/user/urls", handlers.DeleteBatchURLHandler(service))
+	r.Delete("/api/user/urls", handlers.DeleteBatchURLHandler(worker))
 
 	if configuration.DBConnectionString != "" {
 		r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {

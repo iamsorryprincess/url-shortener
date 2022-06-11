@@ -1,15 +1,15 @@
 package worker
 
-import "github.com/iamsorryprincess/url-shortener/internal/storage"
+import (
+	"log"
 
-type URLInput struct {
-	UserID string
-	UrlID  string
-}
+	"github.com/iamsorryprincess/url-shortener/internal/storage"
+)
 
 type Worker struct {
-	inputCh chan URLInput
-	storage storage.Storage
+	balancerChannel chan storage.DeleteURLInput
+	inputChannels   []chan storage.DeleteURLInput
+	storage         storage.Storage
 }
 
 func NewWorker(storage storage.Storage) *Worker {
@@ -18,34 +18,59 @@ func NewWorker(storage storage.Storage) *Worker {
 	}
 }
 
-func (w *Worker) Push(input URLInput) {
-	w.inputCh <- input
-}
-
 func (w *Worker) Start(workersCount int, poolSize int) {
-	w.inputCh = make(chan URLInput)
-	for i := 0; i < workersCount; i++ {
-		go func() {
-			pool := make([]URLInput, poolSize)
+	go func(workersCount int, poolSize int) {
+		w.inputChannels = make([]chan storage.DeleteURLInput, workersCount)
 
-			for {
-				select {
-				case urlData, isOk := <-w.inputCh:
-					if !isOk {
-						w.inputCh = nil
-						return
+		for i := 0; i < workersCount; i++ {
+			w.inputChannels[i] = make(chan storage.DeleteURLInput)
+			go func(poolSize int, ch chan storage.DeleteURLInput) {
+				pool := make([]storage.DeleteURLInput, poolSize)
+				count := 0
+				for urlData := range ch {
+					pool[count] = urlData
+					if count == poolSize-1 {
+						err := w.storage.DeleteBatch(pool)
+						if err != nil {
+							log.Println(err)
+						}
+						count = 0
+						continue
 					}
-					pool = append(pool, urlData)
-					if len(pool) == poolSize {
-						// delete batch
-						pool = pool[:0]
-					}
+					count++
 				}
+			}(poolSize, w.inputChannels[i])
+		}
+
+		w.balancerChannel = make(chan storage.DeleteURLInput)
+		count := 0
+
+		for urlData := range w.balancerChannel {
+			w.inputChannels[count] <- urlData
+			if count == workersCount-1 {
+				count = 0
+				continue
 			}
-		}()
-	}
+			count++
+		}
+
+		for _, ch := range w.inputChannels {
+			close(ch)
+		}
+	}(workersCount, poolSize)
 }
 
-func (w *Worker) Close() {
-	close(w.inputCh)
+func (w *Worker) Process(userID string, urls []string) {
+	go func(userID string, urls []string) {
+		for _, url := range urls {
+			w.balancerChannel <- storage.DeleteURLInput{
+				UserID: userID,
+				URL:    url,
+			}
+		}
+	}(userID, urls)
+}
+
+func (w *Worker) Stop() {
+	close(w.balancerChannel)
 }

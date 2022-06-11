@@ -8,6 +8,8 @@ import (
 
 	"github.com/iamsorryprincess/url-shortener/internal/middleware"
 	"github.com/iamsorryprincess/url-shortener/internal/service"
+	"github.com/iamsorryprincess/url-shortener/internal/storage"
+	"github.com/iamsorryprincess/url-shortener/internal/worker"
 )
 
 func RawMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
@@ -111,6 +113,10 @@ func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 		targetURL, err := urlService.GetURL(request.Context(), url)
 
 		if err != nil {
+			if errors.Is(err, storage.ErrIsDeleted) {
+				writer.WriteHeader(http.StatusGone)
+				return
+			}
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -199,7 +205,7 @@ func SaveBatchURLHandler(urlService *service.URLService) http.HandlerFunc {
 	}
 }
 
-func DeleteBatchURLHandler(urlService *service.URLService) http.HandlerFunc {
+func DeleteBatchURLHandler(worker *worker.Worker) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Content-Type") != "application/json" {
 			writer.WriteHeader(http.StatusUnsupportedMediaType)
@@ -224,7 +230,7 @@ func DeleteBatchURLHandler(urlService *service.URLService) http.HandlerFunc {
 			return
 		}
 
-		//urlService.DeleteBatch(getUserID(request), reqBody)
+		worker.Process(getUserID(request), reqBody)
 		writer.WriteHeader(http.StatusAccepted)
 	}
 }

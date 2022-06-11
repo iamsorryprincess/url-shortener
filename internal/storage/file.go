@@ -109,3 +109,7 @@ func (s *fileStorage) SaveBatch(ctx context.Context, batchInput []URLInput) erro
 func (s *fileStorage) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
 	return "", errors.New("method not implemented")
 }
+
+func (s *fileStorage) DeleteBatch(input []DeleteURLInput) error {
+	return errors.New("method not implemented")
+}
