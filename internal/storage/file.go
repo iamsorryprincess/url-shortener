@@ -11,15 +11,17 @@ import (
 )
 
 type fileStorage struct {
-	mutex   sync.Mutex
-	storage map[string]string
-	file    *os.File
-	encoder *json.Encoder
+	mutex    sync.Mutex
+	storage  map[string]string
+	userData map[string][]UserData
+	file     *os.File
+	encoder  *json.Encoder
 }
 
 type storageData struct {
 	ShortURL string `json:"shortUrl"`
 	FullURL  string `json:"fullUrl"`
+	UserID   string `json:"userId"`
 }
 
 func NewFileStorage(filepath string) (Storage, io.Closer, error) {
@@ -31,6 +33,7 @@ func NewFileStorage(filepath string) (Storage, io.Closer, error) {
 
 	storage := make(map[string]string)
 	reader := bufio.NewReader(file)
+	userData := make(map[string][]UserData)
 
 	for {
 		bytes, readErr := reader.ReadBytes('\n')
@@ -52,24 +55,34 @@ func NewFileStorage(filepath string) (Storage, io.Closer, error) {
 		}
 
 		storage[data.ShortURL] = data.FullURL
+		userData[data.UserID] = append(userData[data.UserID], UserData{
+			FullURL:  data.FullURL,
+			ShortURL: data.ShortURL,
+		})
 	}
 
 	return &fileStorage{
-		mutex:   sync.Mutex{},
-		storage: storage,
-		file:    file,
-		encoder: json.NewEncoder(file),
+		mutex:    sync.Mutex{},
+		storage:  storage,
+		userData: userData,
+		file:     file,
+		encoder:  json.NewEncoder(file),
 	}, file, nil
 }
 
-func (s *fileStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
+func (s *fileStorage) SaveURL(ctx context.Context, input URLInput) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.storage[shortURL] = url
+	s.storage[input.ShortURL] = input.FullURL
+	s.userData[input.UserID] = append(s.userData[input.UserID], UserData{
+		ShortURL: input.ShortURL,
+		FullURL:  input.FullURL,
+	})
 
 	data := &storageData{
-		ShortURL: shortURL,
-		FullURL:  url,
+		ShortURL: input.ShortURL,
+		FullURL:  input.FullURL,
+		UserID:   input.UserID,
 	}
 
 	err := s.encoder.Encode(data)
@@ -83,6 +96,10 @@ func (s *fileStorage) SaveURL(ctx context.Context, url string, shortURL string) 
 
 func (s *fileStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
 	return s.storage[shortURL], nil
+}
+
+func (s *fileStorage) GetURLsByUserID(ctx context.Context, userID string) ([]UserData, error) {
+	return s.userData[userID], nil
 }
 
 func (s *fileStorage) SaveBatch(ctx context.Context, batchInput []URLInput) error {

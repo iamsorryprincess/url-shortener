@@ -8,25 +8,35 @@ import (
 
 type inMemoryStorage struct {
 	mutex    sync.Mutex
-	localMap map[string]string
+	urls     map[string]string
+	userData map[string][]UserData
 }
 
 func NewInMemoryStorage() Storage {
 	return &inMemoryStorage{
-		localMap: make(map[string]string),
+		urls:     make(map[string]string),
+		userData: make(map[string][]UserData),
 		mutex:    sync.Mutex{},
 	}
 }
 
-func (storage *inMemoryStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
+func (storage *inMemoryStorage) SaveURL(ctx context.Context, input URLInput) error {
 	storage.mutex.Lock()
-	storage.localMap[shortURL] = url
+	storage.urls[input.ShortURL] = input.FullURL
+	storage.userData[input.UserID] = append(storage.userData[input.UserID], UserData{
+		ShortURL: input.ShortURL,
+		FullURL:  input.FullURL,
+	})
 	storage.mutex.Unlock()
 	return nil
 }
 
 func (storage *inMemoryStorage) GetURL(ctx context.Context, shortURL string) (string, error) {
-	return storage.localMap[shortURL], nil
+	return storage.urls[shortURL], nil
+}
+
+func (storage *inMemoryStorage) GetURLsByUserID(ctx context.Context, userID string) ([]UserData, error) {
+	return storage.userData[userID], nil
 }
 
 func (storage *inMemoryStorage) SaveBatch(ctx context.Context, batchData []URLInput) error {

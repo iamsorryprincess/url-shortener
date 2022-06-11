@@ -31,11 +31,12 @@ func NewServer(
 	r.Use(middleware.Gzip)
 	r.Use(middleware.Cookie(keyManager))
 
-	r.Post("/", handlers.RawMakeShortURLHandler(service, configuration.BaseURL))
-	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(service, configuration.BaseURL))
-	r.Post("/api/shorten/batch", handlers.SaveBatchURLHandler(service, configuration.BaseURL))
+	r.Post("/", handlers.RawMakeShortURLHandler(service))
+	r.Post("/api/shorten", handlers.JSONMakeShortURLHandler(service))
+	r.Post("/api/shorten/batch", handlers.SaveBatchURLHandler(service))
 	r.Get("/{URL}", handlers.GetFullURLHandler(service))
 	r.Get("/api/user/urls", handlers.GetUserUrls(service))
+	r.Delete("/api/user/urls", handlers.DeleteBatchURLHandler(service))
 
 	if configuration.DBConnectionString != "" {
 		r.Get("/ping", func(writer http.ResponseWriter, request *http.Request) {

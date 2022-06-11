@@ -25,8 +25,8 @@ func NewPostgresqlStorage(db *sql.DB) (Storage, error) {
 	}, nil
 }
 
-func (s *postgresqlStorage) SaveURL(ctx context.Context, url string, shortURL string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT INTO public.urls (short_url, original_url) VALUES ($1, $2);", shortURL, url)
+func (s *postgresqlStorage) SaveURL(ctx context.Context, input URLInput) error {
+	_, err := s.db.ExecContext(ctx, "INSERT INTO public.urls (short_url, original_url, user_id) VALUES ($1, $2, $3);", input.ShortURL, input.FullURL, input.UserID)
 
 	var pgError pgx.PgError
 
@@ -84,6 +84,28 @@ func (s *postgresqlStorage) GetByOriginalURL(ctx context.Context, originalURL st
 
 	if err != nil {
 		return "", err
+	}
+
+	return result, nil
+}
+
+func (s *postgresqlStorage) GetURLsByUserID(ctx context.Context, userID string) ([]UserData, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT short_url, original_url FROM public.urls WHERE user_id=$1", userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	var result []UserData
+
+	for rows.Next() {
+		var userData UserData
+		err = rows.Scan(&userData.ShortURL, &userData.FullURL)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, userData)
 	}
 
 	return result, nil

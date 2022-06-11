@@ -56,7 +56,7 @@ func testHandler(handlerTestInfo TestHandler) {
 
 func TestJSONMakeShortURLHandler(t *testing.T) {
 	urlStorage := storage.NewInMemoryStorage()
-	urlService := service.NewURLService(urlStorage)
+	urlService := service.NewURLService(urlStorage, "http://localhost:8080")
 
 	tests := []struct {
 		name                string
@@ -101,7 +101,7 @@ func TestJSONMakeShortURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     JSONMakeShortURLHandler(urlService, "http://localhost:8080"),
+				handler:     JSONMakeShortURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -111,7 +111,7 @@ func TestJSONMakeShortURLHandler(t *testing.T) {
 
 func TestRawMakeShortURLHandler(t *testing.T) {
 	urlStorage := storage.NewInMemoryStorage()
-	urlService := service.NewURLService(urlStorage)
+	urlService := service.NewURLService(urlStorage, "http://localhost:8080")
 
 	tests := []struct {
 		name                string
@@ -149,7 +149,7 @@ func TestRawMakeShortURLHandler(t *testing.T) {
 				statusCode:  test.expectedStatusCode,
 				header:      "Content-Type",
 				headerValue: test.expectedContentType,
-				handler:     RawMakeShortURLHandler(urlService, "http://localhost:8080"),
+				handler:     RawMakeShortURLHandler(urlService),
 				t:           t,
 			}
 			testHandler(testInfo)
@@ -159,9 +159,9 @@ func TestRawMakeShortURLHandler(t *testing.T) {
 
 func TestGetFullURLHandler(t *testing.T) {
 	urlStorage := storage.NewInMemoryStorage()
-	urlService := service.NewURLService(urlStorage)
+	urlService := service.NewURLService(urlStorage, "http://localhost:8080")
 	url := "https://www.youtube.com/"
-	shortURL, err := urlService.SaveURL(context.Background(), url, "test", "http://localhost:8080")
+	shortURL, err := urlService.SaveURL(context.Background(), url, "test")
 
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +181,7 @@ func TestGetFullURLHandler(t *testing.T) {
 		},
 		{
 			name:               "test with not empty url",
-			query:              shortURL,
+			query:              strings.TrimPrefix(shortURL, "http://localhost:8080/"),
 			expectedStatusCode: 307,
 			locationHeader:     url,
 		},
@@ -219,8 +219,8 @@ func TestGzipMiddleware(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBuffer(data))
 	request.Header.Set("Content-Type", "application/json")
 	urlStorage := storage.NewInMemoryStorage()
-	urlService := service.NewURLService(urlStorage)
-	handler := JSONMakeShortURLHandler(urlService, "http://localhost:8080")
+	urlService := service.NewURLService(urlStorage, "http://localhost:8080")
+	handler := JSONMakeShortURLHandler(urlService)
 	writer := httptest.NewRecorder()
 	handler.ServeHTTP(writer, request)
 	response := writer.Result()

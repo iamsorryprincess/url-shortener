@@ -10,22 +10,17 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/storage"
 )
 
-type UserData struct {
-	ShortURL string `json:"short_url"`
-	FullURL  string `json:"original_url"`
-}
-
 type URLService struct {
 	storage   storage.Storage
 	userMutex sync.Mutex
-	userUrls  map[string][]UserData
+	baseURL   string
 }
 
-func NewURLService(storage storage.Storage) *URLService {
+func NewURLService(storage storage.Storage, baseURL string) *URLService {
 	return &URLService{
 		storage:   storage,
-		userUrls:  make(map[string][]UserData),
 		userMutex: sync.Mutex{},
+		baseURL:   baseURL,
 	}
 }
 
@@ -43,9 +38,13 @@ func (e *URLUniqueError) Unwrap() error {
 	return e.err
 }
 
-func (service *URLService) SaveURL(ctx context.Context, url string, userID string, baseURL string) (string, error) {
+func (service *URLService) SaveURL(ctx context.Context, url string, userID string) (string, error) {
 	key := uuid.New().String()
-	err := service.storage.SaveURL(ctx, url, key)
+	err := service.storage.SaveURL(ctx, storage.URLInput{
+		FullURL:  url,
+		ShortURL: key,
+		UserID:   userID,
+	})
 
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExist) {
@@ -57,28 +56,32 @@ func (service *URLService) SaveURL(ctx context.Context, url string, userID strin
 
 			return "", &URLUniqueError{
 				OriginalURL: url,
-				ShortURL:    shortURL,
+				ShortURL:    service.baseURL + "/" + shortURL,
 			}
 		}
 
 		return "", err
 	}
 
-	service.userMutex.Lock()
-	service.userUrls[userID] = append(service.userUrls[userID], UserData{
-		FullURL:  url,
-		ShortURL: baseURL + "/" + key,
-	})
-	service.userMutex.Unlock()
-	return key, nil
+	return service.baseURL + "/" + key, nil
 }
 
 func (service *URLService) GetURL(ctx context.Context, url string) (string, error) {
 	return service.storage.GetURL(ctx, url)
 }
 
-func (service *URLService) GetUserData(userID string) []UserData {
-	return service.userUrls[userID]
+func (service *URLService) GetUserData(ctx context.Context, userID string) ([]storage.UserData, error) {
+	result, err := service.storage.GetURLsByUserID(ctx, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for index, item := range result {
+		result[index].ShortURL = service.baseURL + "/" + item.ShortURL
+	}
+
+	return result, nil
 }
 
 type URLInput struct {
@@ -91,7 +94,7 @@ type URLResult struct {
 	ShortURL      string `json:"short_url"`
 }
 
-func (service *URLService) SaveBatch(ctx context.Context, baseURL string, input []URLInput) ([]URLResult, error) {
+func (service *URLService) SaveBatch(ctx context.Context, input []URLInput) ([]URLResult, error) {
 	batchData := make([]storage.URLInput, len(input))
 	result := make([]URLResult, len(input))
 
@@ -103,7 +106,7 @@ func (service *URLService) SaveBatch(ctx context.Context, baseURL string, input 
 		}
 		result[index] = URLResult{
 			CorrelationID: inputData.CorrelationID,
-			ShortURL:      baseURL + "/" + id,
+			ShortURL:      service.baseURL + "/" + id,
 		}
 	}
 

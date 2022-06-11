@@ -42,7 +42,7 @@ func Run() {
 			return
 		}
 
-		urlService = service.NewURLService(postgresqlStorage)
+		urlService = service.NewURLService(postgresqlStorage, configuration.BaseURL)
 	} else if configuration.DBConnectionString != "" {
 		var err error
 		db, err = initDB(configuration.DBConnectionString)
@@ -60,7 +60,7 @@ func Run() {
 			return
 		}
 
-		urlService = service.NewURLService(postgresqlStorage)
+		urlService = service.NewURLService(postgresqlStorage, configuration.BaseURL)
 	} else if configuration.StoragePath != "" {
 		fileStorage, file, err := storage.NewFileStorage(configuration.StoragePath)
 
@@ -70,10 +70,10 @@ func Run() {
 		}
 
 		defer file.Close()
-		urlService = service.NewURLService(fileStorage)
+		urlService = service.NewURLService(fileStorage, configuration.BaseURL)
 	} else {
 		inMemoryStorage := storage.NewInMemoryStorage()
-		urlService = service.NewURLService(inMemoryStorage)
+		urlService = service.NewURLService(inMemoryStorage, configuration.BaseURL)
 	}
 
 	keyManager, err := hash.NewGcmKeyManager()

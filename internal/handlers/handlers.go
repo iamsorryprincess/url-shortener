@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/iamsorryprincess/url-shortener/internal/service"
 )
 
-func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
+func RawMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -26,12 +25,12 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 		}
 
 		url := string(bytes)
-		shortenURL, serviceErr := urlService.SaveURL(request.Context(), url, getUserID(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(request.Context(), url, getUserID(request))
 
 		if serviceErr != nil {
 			var urlErr *service.URLUniqueError
 			if errors.As(serviceErr, &urlErr) {
-				writeURLResponseRaw(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
+				writeURLResponseRaw(writer, urlErr.ShortURL, http.StatusConflict)
 				return
 			}
 
@@ -39,7 +38,7 @@ func RawMakeShortURLHandler(urlService *service.URLService, baseURL string) http
 			return
 		}
 
-		writeURLResponseRaw(writer, baseURL, shortenURL, http.StatusCreated)
+		writeURLResponseRaw(writer, shortenURL, http.StatusCreated)
 	}
 }
 
@@ -51,7 +50,7 @@ type URLResponse struct {
 	Result string `json:"result"`
 }
 
-func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
+func JSONMakeShortURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		bytes, readErr := io.ReadAll(request.Body)
 
@@ -83,12 +82,12 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		shortenURL, serviceErr := urlService.SaveURL(request.Context(), reqBody.URL, getUserID(request), baseURL)
+		shortenURL, serviceErr := urlService.SaveURL(request.Context(), reqBody.URL, getUserID(request))
 
 		if serviceErr != nil {
 			var urlErr *service.URLUniqueError
 			if errors.As(serviceErr, &urlErr) {
-				writeURLResponseJSON(writer, baseURL, urlErr.ShortURL, http.StatusConflict)
+				writeURLResponseJSON(writer, urlErr.ShortURL, http.StatusConflict)
 				return
 			}
 
@@ -96,7 +95,7 @@ func JSONMakeShortURLHandler(urlService *service.URLService, baseURL string) htt
 			return
 		}
 
-		writeURLResponseJSON(writer, baseURL, shortenURL, http.StatusCreated)
+		writeURLResponseJSON(writer, shortenURL, http.StatusCreated)
 	}
 }
 
@@ -128,7 +127,12 @@ func GetFullURLHandler(urlService *service.URLService) http.HandlerFunc {
 
 func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		data := urlService.GetUserData(getUserID(request))
+		data, err := urlService.GetUserData(request.Context(), getUserID(request))
+
+		if err != nil {
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		if data == nil {
 			writer.WriteHeader(http.StatusNoContent)
@@ -148,7 +152,7 @@ func GetUserUrls(urlService *service.URLService) http.HandlerFunc {
 	}
 }
 
-func SaveBatchURLHandler(urlService *service.URLService, baseURL string) http.HandlerFunc {
+func SaveBatchURLHandler(urlService *service.URLService) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Content-Type") != "application/json" {
 			writer.WriteHeader(http.StatusUnsupportedMediaType)
@@ -175,7 +179,7 @@ func SaveBatchURLHandler(urlService *service.URLService, baseURL string) http.Ha
 			return
 		}
 
-		batchResult, err := urlService.SaveBatch(request.Context(), baseURL, reqBody)
+		batchResult, err := urlService.SaveBatch(request.Context(), reqBody)
 
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -195,6 +199,36 @@ func SaveBatchURLHandler(urlService *service.URLService, baseURL string) http.Ha
 	}
 }
 
+func DeleteBatchURLHandler(urlService *service.URLService) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Content-Type") != "application/json" {
+			writer.WriteHeader(http.StatusUnsupportedMediaType)
+			return
+		}
+
+		bytes, err := io.ReadAll(request.Body)
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if len(bytes) == 0 {
+			http.Error(writer, "empty body", http.StatusBadRequest)
+			return
+		}
+
+		var reqBody []string
+		if err = json.Unmarshal(bytes, &reqBody); err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		//urlService.DeleteBatch(getUserID(request), reqBody)
+		writer.WriteHeader(http.StatusAccepted)
+	}
+}
+
 func getUserID(request *http.Request) string {
 	value, ok := request.Context().Value(middleware.CookieKey).(middleware.UserData)
 
@@ -205,9 +239,9 @@ func getUserID(request *http.Request) string {
 	return value.ID
 }
 
-func writeURLResponseRaw(writer http.ResponseWriter, baseURL string, shortenURL string, statusCode int) {
+func writeURLResponseRaw(writer http.ResponseWriter, shortenURL string, statusCode int) {
 	writer.WriteHeader(statusCode)
-	_, err := writer.Write([]byte(fmt.Sprintf("%s/%s", baseURL, shortenURL)))
+	_, err := writer.Write([]byte(shortenURL))
 
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -215,9 +249,9 @@ func writeURLResponseRaw(writer http.ResponseWriter, baseURL string, shortenURL 
 	}
 }
 
-func writeURLResponseJSON(writer http.ResponseWriter, baseURL string, shortenURL string, statusCode int) {
+func writeURLResponseJSON(writer http.ResponseWriter, shortenURL string, statusCode int) {
 	response := URLResponse{
-		Result: fmt.Sprintf("%s/%s", baseURL, shortenURL),
+		Result: shortenURL,
 	}
 
 	responseBytes, serializeErr := json.Marshal(&response)
