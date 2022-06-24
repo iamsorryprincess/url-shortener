@@ -1,52 +1,120 @@
 package service
 
 import (
-	"math/rand"
-	"time"
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+
+	"github.com/google/uuid"
+	"github.com/iamsorryprincess/url-shortener/internal/storage"
 )
 
-type Storage interface {
-	SaveURL(url string, shortURL string)
-	GetURL(shortURL string) string
-}
-
 type URLService struct {
-	storage      Storage
-	randomizer   *rand.Rand
-	randomMatrix []string
+	storage   storage.Storage
+	userMutex sync.Mutex
+	baseURL   string
 }
 
-func (service *URLService) SaveURL(url string) string {
-	n := len(service.randomMatrix) - 1
-	key := ""
-	existingKey := "1"
-
-	for existingKey != "" {
-		key = ""
-		for i := 1; i <= 10; i++ {
-			index := service.randomizer.Intn(n)
-			key += service.randomMatrix[index]
-		}
-		existingKey = service.storage.GetURL(key)
-	}
-
-	service.storage.SaveURL(url, key)
-	return key
-}
-
-func (service *URLService) GetURL(url string) string {
-	return service.storage.GetURL(url)
-}
-
-func InitURLService(storage Storage) *URLService {
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
+func NewURLService(storage storage.Storage, baseURL string) *URLService {
 	return &URLService{
-		storage:    storage,
-		randomizer: r1,
-		randomMatrix: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9",
-			"A", "B", "C", "D", "E", "F", "G", "H", "L",
-			"M", "N", "O", "P", "Q", "R", "T", "S", "U",
-			"V", "W", "X", "Y", "Z"},
+		storage:   storage,
+		userMutex: sync.Mutex{},
+		baseURL:   baseURL,
 	}
+}
+
+type URLUniqueError struct {
+	OriginalURL string
+	ShortURL    string
+	err         error
+}
+
+func (e *URLUniqueError) Error() string {
+	return fmt.Sprintf("original url %s already exist; shortURL: %s", e.OriginalURL, e.ShortURL)
+}
+
+func (e *URLUniqueError) Unwrap() error {
+	return e.err
+}
+
+func (service *URLService) SaveURL(ctx context.Context, url string, userID string) (string, error) {
+	key := uuid.New().String()
+	err := service.storage.SaveURL(ctx, storage.URLInput{
+		FullURL:  url,
+		ShortURL: key,
+		UserID:   userID,
+	})
+
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExist) {
+			shortURL, getErr := service.storage.GetByOriginalURL(ctx, url)
+
+			if getErr != nil {
+				return "", getErr
+			}
+
+			return "", &URLUniqueError{
+				OriginalURL: url,
+				ShortURL:    service.baseURL + "/" + shortURL,
+			}
+		}
+
+		return "", err
+	}
+
+	return service.baseURL + "/" + key, nil
+}
+
+func (service *URLService) GetURL(ctx context.Context, url string) (string, error) {
+	return service.storage.GetURL(ctx, url)
+}
+
+func (service *URLService) GetUserData(ctx context.Context, userID string) ([]storage.UserData, error) {
+	result, err := service.storage.GetURLsByUserID(ctx, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for index, item := range result {
+		result[index].ShortURL = service.baseURL + "/" + item.ShortURL
+	}
+
+	return result, nil
+}
+
+type URLInput struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type URLResult struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (service *URLService) SaveBatch(ctx context.Context, input []URLInput) ([]URLResult, error) {
+	batchData := make([]storage.URLInput, len(input))
+	result := make([]URLResult, len(input))
+
+	for index, inputData := range input {
+		id := uuid.New().String()
+		batchData[index] = storage.URLInput{
+			ShortURL: id,
+			FullURL:  inputData.OriginalURL,
+		}
+		result[index] = URLResult{
+			CorrelationID: inputData.CorrelationID,
+			ShortURL:      service.baseURL + "/" + id,
+		}
+	}
+
+	err := service.storage.SaveBatch(ctx, batchData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
